@@ -30,7 +30,7 @@
 #define DPATH_PODMAN_CGROUP_V2      FLB_TESTS_DATA_PATH "/data/podman/cgroupv2"
 
 
-int check_metric(flb_ctx_t *ctx, flb_sds_t *name) {
+int check_counter(flb_ctx_t *ctx, flb_sds_t *name) {
     struct mk_list *tmp;
     struct mk_list *head;
     struct mk_list *inner_tmp;
@@ -45,8 +45,33 @@ int check_metric(flb_ctx_t *ctx, flb_sds_t *name) {
         i_ins = mk_list_entry(head, struct flb_input_instance, _head);
         mk_list_foreach_safe(inner_head, inner_tmp, &i_ins->cmt->counters) {
             counter = mk_list_entry(inner_head, struct cmt_counter, _head);
-
             if (strlen(name) != 0 && strcmp(name, counter->opts.name) == 0)
+            {
+                return 0;
+            }
+            number_of_metrics++;
+        }
+    }
+    return number_of_metrics;
+
+}
+
+int check_gauge(flb_ctx_t *ctx, flb_sds_t *name) {
+    struct mk_list *tmp;
+    struct mk_list *head;
+    struct mk_list *inner_tmp;
+    struct mk_list *inner_head;
+
+    struct flb_input_instance *i_ins;
+    struct cmt_gauge *gauge;
+
+    int number_of_metrics=0;
+
+    mk_list_foreach_safe(head, tmp, &ctx->config->inputs) {
+        i_ins = mk_list_entry(head, struct flb_input_instance, _head);
+        mk_list_foreach_safe(inner_head, inner_tmp, &i_ins->cmt->gauges) {
+            gauge = mk_list_entry(inner_head, struct cmt_gauge, _head);
+            if (strlen(name) != 0 && strcmp(name, gauge->opts.name) == 0)
             {
                 return 0;
             }
@@ -80,6 +105,7 @@ void do_create(flb_ctx_t *ctx, char *system, ...)
 
     TEST_CHECK(flb_service_set(ctx, "Flush", "0.5",
                                     "Grace", "1",
+                                    "log_level", "trace",
                                     NULL) == 0);
 }
 
@@ -99,8 +125,9 @@ void flb_test_ipm_regular() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") == 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") == 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") == 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") == 0);
+    TEST_CHECK(check_gauge(ctx, "processes") == 0);
     do_destroy(ctx);
 }
 
@@ -115,8 +142,8 @@ void flb_test_ipm_reversed() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") == 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") == 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") == 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") == 0);
     do_destroy(ctx);
 }
 
@@ -157,8 +184,8 @@ void flb_test_ipm_no_sysfs() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") != 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") != 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") != 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") != 0);
     do_destroy(ctx);
 }
 
@@ -173,8 +200,8 @@ void flb_test_ipm_no_proc() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") == 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") != 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") == 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") != 0);
     do_destroy(ctx);
 }
 
@@ -189,8 +216,8 @@ void flb_test_ipm_garbage() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") != 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") != 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") != 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") != 0);
     do_destroy(ctx);
 }
 
@@ -205,8 +232,9 @@ void flb_test_ipm_cgroupv2() {
             NULL);
     TEST_CHECK(flb_start(ctx) == 0);
     sleep(1);
-    TEST_CHECK(check_metric(ctx, "usage_bytes") == 0);
-    TEST_CHECK(check_metric(ctx, "receive_bytes_total") == 0);
+    TEST_CHECK(check_counter(ctx, "usage_bytes") == 0);
+    TEST_CHECK(check_counter(ctx, "receive_bytes_total") == 0);
+    TEST_CHECK(check_gauge(ctx, "processes") == 0);
     do_destroy(ctx);
 }
 

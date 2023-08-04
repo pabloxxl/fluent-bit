@@ -159,6 +159,8 @@ static int add_container_to_list(struct flb_in_metrics *ctx, flb_sds_t id, flb_s
     cnt->cpu_user = UINT64_MAX;
     cnt->cpu = UINT64_MAX;
 
+    cnt->processes = UINT64_MAX;
+
     mk_list_init(&cnt->net_data);
 
     mk_list_add(&cnt->_head, &ctx->items);
@@ -341,6 +343,8 @@ static int create_counters(struct flb_in_metrics *ctx)
             create_counter(ctx, &ctx->tx_errors, cnt->id, cnt->name, cnt->image_name, COUNTER_NETWORK_PREFIX, FIELDS_METRIC_WITH_IFACE, COUNTER_TX_ERRORS,
                            DESCRIPTION_TX_ERRORS, iface->name, iface->tx_errors);
         }
+        create_gauge(ctx, &ctx->g_processes, cnt->id, cnt->name, cnt->image_name, COUNTER_PROCESSES_PREFIX, FIELDS_METRIC, GAUGE_PROCESSES,
+                     DESCRIPTION_PROCESSES, NULL, cnt->processes);
     }
     return 0;
 }
@@ -428,6 +432,7 @@ static int in_metrics_init(struct flb_input_instance *in, struct flb_config *con
     ctx->rx_errors = NULL;
     ctx->tx_bytes = NULL;
     ctx->tx_errors = NULL;
+    ctx->g_processes = NULL;
 
     if (flb_input_config_map_set(in, (void *) ctx) == -1) {
         flb_free(ctx);

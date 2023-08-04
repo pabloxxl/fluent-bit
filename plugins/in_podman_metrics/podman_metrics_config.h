@@ -138,6 +138,10 @@
 #define COUNTER_TX_ERRORS               "transmit_errors_total"
 #define DESCRIPTION_TX_ERRORS           "Network transmitedd errors"
 
+#define COUNTER_PROCESSES_PREFIX        "systemd"
+#define GAUGE_PROCESSES                 "processes"
+#define DESCRIPTION_PROCESSES           "Number of processes running inside the container"
+
 
 struct net_iface {
     flb_sds_t       name;
@@ -160,6 +164,8 @@ struct container {
     uint64_t        cpu;
     uint64_t        cpu_user;
     uint64_t        rss;
+
+    uint64_t        processes;
 
     struct mk_list  net_data;
 };
@@ -192,6 +198,7 @@ struct flb_in_metrics {
     struct cmt_counter *rx_errors;
     struct cmt_counter *tx_bytes;
     struct cmt_counter *tx_errors;
+    struct cmt_gauge   *g_processes;
 
     /* cgroup version used by host */
     int cgroup_version;

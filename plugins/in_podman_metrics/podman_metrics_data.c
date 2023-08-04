@@ -55,6 +55,31 @@ uint64_t read_from_file(struct flb_in_metrics *ctx, flb_sds_t path)
 }
 
 /*
+ * Count lines in file. If this function fails, it
+ * returns UINT64_MAX, which will be later interpeted as invalid counter value
+ * (it cannot return 0, because it is a valid value for counter
+ */
+uint64_t count_file_lines(struct flb_in_metrics *ctx, flb_sds_t path)
+{
+    int c;
+    uint64_t value = 0;
+    FILE *fp;
+
+    fp = fopen(path, "r");
+    if (!fp) {
+        flb_plg_warn(ctx->ins, "Failed to read %s", path);
+        return UINT64_MAX;
+    }
+    for (c = getc(fp); c != EOF; c = getc(fp)) {
+        if (c == '\n') {
+            value++;
+        }
+    }
+
+    return value;
+}
+
+/*
  * Read uint64_t value from given path. Check for key: <VALUE> and return it. 
  * If this function fails, it
  * returns UINT64_MAX, which will be later interpeted as invalid counter value
@@ -128,6 +153,26 @@ uint64_t get_data_from_sysfs(struct flb_in_metrics *ctx, flb_sds_t dir, flb_sds_
     else {
         data = read_key_value_from_file(ctx, path, key);
     }
+    flb_plg_debug(ctx->ins, "%s: %lu", path, data);
+    return data;
+}
+
+/*
+ * Count lines from sysfs file in order to determine number of specific elements
+ */
+uint64_t count_data_from_sysfs(struct flb_in_metrics *ctx, flb_sds_t dir, flb_sds_t name)
+{
+    char path[SYSFS_FILE_PATH_SIZE];
+    uint64_t data = UINT64_MAX;
+    path[0]=0;
+
+    if (dir == NULL) {
+        return data;
+    }
+
+    snprintf(path, sizeof(path), "%s/%s", dir, name);
+
+    data = count_file_lines(ctx, path);
     flb_plg_debug(ctx->ins, "%s: %lu", path, data);
     return data;
 }
@@ -333,6 +378,7 @@ int fill_counters_with_sysfs_data_v1(struct flb_in_metrics *ctx)
         pid = get_data_from_sysfs(ctx, systemd_path, V1_SYSFS_FILE_PIDS, NULL);
         if (pid && pid != UINT64_MAX) {
             get_net_data_from_proc(ctx, cnt, pid);
+            cnt->processes = count_data_from_sysfs(ctx, systemd_path, V1_SYSFS_FILE_PIDS);
         }
         else {
             flb_plg_warn(ctx->ins, "Failed to collect PID for %s", cnt->name);
@@ -372,6 +418,12 @@ int fill_counters_with_sysfs_data_v2(struct flb_in_metrics *ctx)
         }
         if (pid && pid != UINT64_MAX) {
             get_net_data_from_proc(ctx, cnt, pid);
+            if (!pid || pid == UINT64_MAX) {
+                cnt->processes = count_data_from_sysfs(ctx, path, V2_SYSFS_FILE_PIDS_ALT);
+            }
+            else {
+                cnt->processes = count_data_from_sysfs(ctx, path, V2_SYSFS_FILE_PIDS);
+            }
         }
         else {
             flb_plg_warn(ctx->ins, "Failed to collect PID for %s", cnt->name);
